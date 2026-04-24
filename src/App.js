@@ -252,6 +252,7 @@ export default function MeetingRoomReservation() {
   const filteredList = useMemo(() => {
     return [...reservations]
       .filter(r => {
+        if (r.status === 'rejected') return false;
         const matchName = filterParams.searchQuery
           ? r.name.includes(filterParams.searchQuery)
           : true;
@@ -1012,16 +1013,6 @@ export default function MeetingRoomReservation() {
                       {r.status === 'pending' && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
                           승인 대기 중
-                        </span>
-                      )}
-                      {r.status === 'approved' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-300">
-                          승인됨
-                        </span>
-                      )}
-                      {r.status === 'rejected' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-300">
-                          거절됨
                         </span>
                       )}
                     </div>
