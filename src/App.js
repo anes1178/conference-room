@@ -238,13 +238,15 @@ export default function MeetingRoomReservation() {
 
   const isTimeRangeAvailable = (room, date, start, end) =>
     !reservations.some(
-      r => r.room === room && r.date === date && r.status === 'approved' && !(r.endHour <= start || r.startHour >= end)
+      r => r.room === room && r.date === date &&
+        (r.status === 'approved' || r.status === 'cancel_pending') &&
+        !(r.endHour <= start || r.startHour >= end)
     );
 
   const canReserve =
     isTimeRangeAvailable(selectedRoom, selectedDate, startHour, endHour) && startHour < endHour;
 
-  const filteredByDate = reservations.filter(r => r.date === selectedDate && r.status === 'approved');
+  const filteredByDate = reservations.filter(r => r.date === selectedDate && (r.status === 'approved' || r.status === 'cancel_pending'));
 
   const weekDates = useMemo(() => getWeekDates(weekStartDate), [weekStartDate]);
 
@@ -291,7 +293,7 @@ export default function MeetingRoomReservation() {
 
     // 다음 예정 예약 (오늘 이후, 최대 5건)
     const upcoming = [...reservations]
-      .filter(r => r.status === 'approved' && (r.date > todayStr || (r.date === todayStr && r.startHour > new Date().getHours())))
+      .filter(r => (r.status === 'approved' || r.status === 'cancel_pending') && (r.date > todayStr || (r.date === todayStr && r.startHour > new Date().getHours())))
       .sort((a, b) => a.date.localeCompare(b.date) || a.startHour - b.startHour)
       .slice(0, 5);
 
@@ -336,12 +338,27 @@ export default function MeetingRoomReservation() {
   };
 
   const handleCancel = async (id) => {
-    const { error } = await supabase.from('reservations').delete().eq('id', id);
-    if (error) {
-      alert('취소 중 오류가 발생했습니다.');
+    const target = reservations.find(r => r.id === id);
+    if (target?.status === 'approved') {
+      // 승인된 예약은 취소 요청 상태로 변경 (관리자 확정 필요)
+      const { error } = await supabase.from('reservations').update({ status: 'cancel_pending' }).eq('id', id);
+      if (!error) setReservations(prev => prev.map(r => r.id === id ? { ...r, status: 'cancel_pending' } : r));
     } else {
-      setReservations(prev => prev.filter(r => r.id !== id));
+      // pending 예약은 바로 삭제
+      const { error } = await supabase.from('reservations').delete().eq('id', id);
+      if (error) alert('취소 중 오류가 발생했습니다.');
+      else setReservations(prev => prev.filter(r => r.id !== id));
     }
+  };
+
+  const handleConfirmCancel = async (id) => {
+    const { error } = await supabase.from('reservations').delete().eq('id', id);
+    if (!error) setReservations(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleRejectCancel = async (id) => {
+    const { error } = await supabase.from('reservations').update({ status: 'approved' }).eq('id', id);
+    if (!error) setReservations(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r));
   };
 
   const handleApprove = async (id) => {
@@ -777,7 +794,7 @@ export default function MeetingRoomReservation() {
   // ─────────────────────────────────────────────
   const renderWeeklyView = () => {
     const weekRes = reservations.filter(
-      r => r.room === activeWeekRoom && weekDates.includes(r.date) && r.status === 'approved'
+      r => r.room === activeWeekRoom && weekDates.includes(r.date) && (r.status === 'approved' || r.status === 'cancel_pending')
     );
     const c = ROOM_COLORS[activeWeekRoom];
 
@@ -1017,6 +1034,11 @@ export default function MeetingRoomReservation() {
                           승인 대기 중
                         </span>
                       )}
+                      {r.status === 'cancel_pending' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-300">
+                          취소 요청 중
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
                       <Clock className="w-4 h-4 shrink-0" />
@@ -1157,6 +1179,8 @@ export default function MeetingRoomReservation() {
   const renderAdmin = () => {
     const pending = reservations.filter(r => r.status === 'pending')
       .sort((a, b) => a.date.localeCompare(b.date) || a.startHour - b.startHour);
+    const cancelPending = reservations.filter(r => r.status === 'cancel_pending')
+      .sort((a, b) => a.date.localeCompare(b.date) || a.startHour - b.startHour);
     return (
       <div className="bg-white rounded-xl shadow-lg p-5">
         <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
@@ -1216,6 +1240,57 @@ export default function MeetingRoomReservation() {
             })}
           </div>
         )}
+        {/* 취소 요청 섹션 */}
+        {cancelPending.length > 0 && (
+          <div className="mt-8">
+            <h3 className="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
+              <X className="w-4 h-4 text-orange-500" />
+              취소 요청
+              <span className="text-sm text-gray-400 font-normal ml-1">({cancelPending.length}건)</span>
+            </h3>
+            <p className="text-xs text-gray-400 mb-4">취소 확정 시 예약이 삭제됩니다.</p>
+            <div className="space-y-3">
+              {cancelPending.map(r => {
+                const c = ROOM_COLORS[r.room];
+                return (
+                  <div key={r.id} className="border border-orange-200 rounded-xl p-4 bg-orange-50 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className={`w-1.5 min-h-12 rounded-full bg-${c}-500 shrink-0 self-stretch`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className={`font-bold text-${c}-700`}>{r.room}</span>
+                          <span className="text-sm text-gray-500">{formatDate(r.date)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
+                          <Clock className="w-4 h-4 shrink-0" />
+                          {r.startHour}:00 ~ {r.endHour}:00
+                        </div>
+                        <div className="text-sm text-gray-700">
+                          <span className="font-medium">예약자:</span> {r.name}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => handleConfirmCancel(r.id)}
+                        className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition text-sm font-medium"
+                      >
+                        취소 확정
+                      </button>
+                      <button
+                        onClick={() => handleRejectCancel(r.id)}
+                        className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition text-sm font-medium border border-gray-200"
+                      >
+                        취소 거절
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <button
           onClick={() => { setIsAdmin(false); setActiveTab('dashboard'); }}
           className="mt-6 text-xs text-gray-400 hover:text-gray-600 transition"
