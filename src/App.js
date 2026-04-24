@@ -433,14 +433,14 @@ export default function MeetingRoomReservation() {
       <h2 className="text-xl font-bold text-gray-800 mb-4">예약하기</h2>
 
       {/* 날짜 */}
-      <div className="mb-4 overflow-hidden">
+      <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-1">날짜</label>
         <input
           type="date"
           value={selectedDate}
           min={today()}
           onChange={(e) => setSelectedDate(e.target.value)}
-          className="w-full max-w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm box-border"
+          className="w-auto border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm box-border"
         />
         <p className="text-xs text-gray-500 mt-1">{formatDate(selectedDate)}</p>
       </div>
