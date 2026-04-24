@@ -172,6 +172,7 @@ export default function MeetingRoomReservation() {
   const [startHour, setStartHour] = useState(9);
   const [endHour, setEndHour] = useState(10);
   const [showForm, setShowForm] = useState(false);
+  const [showFormMobile, setShowFormMobile] = useState(false);
   const [formData, setFormData] = useState({ name: '', purpose: '' });
   const [attendeeCount, setAttendeeCount] = useState(1);
 
@@ -744,7 +745,7 @@ export default function MeetingRoomReservation() {
     const c = ROOM_COLORS[activeWeekRoom];
 
     return (
-      <div className="bg-white rounded-xl shadow-lg p-5 overflow-x-auto">
+      <div className="bg-white rounded-xl shadow-lg p-5 overflow-x-auto w-full">
         {/* 헤더: 회의실 탭 + 주 네비게이션 */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
           <div className="flex gap-1">
@@ -1104,7 +1105,7 @@ export default function MeetingRoomReservation() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8 overflow-x-hidden">
       <div className="max-w-7xl mx-auto">
         {/* 헤더 */}
         <div className="mb-6">
@@ -1140,10 +1141,22 @@ export default function MeetingRoomReservation() {
         {activeTab === 'calendar' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* 예약 폼 사이드바 */}
-            <div className="lg:col-span-1">{renderForm()}</div>
+            <div className="order-2 lg:order-1 lg:col-span-1">
+              {/* 모바일 전용 토글 버튼 */}
+              <button
+                className="block lg:hidden w-full mb-3 py-2 px-4 bg-indigo-600 text-white text-sm font-medium rounded-lg"
+                onClick={() => setShowFormMobile(prev => !prev)}
+              >
+                {showFormMobile ? '폼 닫기' : '예약하기'}
+              </button>
+              {/* 데스크탑: 항상 표시 / 모바일: 토글에 따라 표시 */}
+              <div className={showFormMobile ? 'block' : 'hidden lg:block'}>
+                {renderForm()}
+              </div>
+            </div>
 
             {/* 타임라인 영역 */}
-            <div className="lg:col-span-3 space-y-4">
+            <div className="order-1 lg:order-2 lg:col-span-3 space-y-4">
               {/* 일별 / 주간 토글 */}
               <div className="flex items-center gap-2">
                 <div className="flex bg-white rounded-lg shadow p-1 gap-1">
