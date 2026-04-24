@@ -195,7 +195,7 @@ export default function MeetingRoomReservation() {
   // ── 예약 목록 필터 ──
   const [filterParams, setFilterParams] = useState({
     searchQuery: '',
-    rooms: ['A회의실', 'B회의실', 'C회의실'],
+    rooms: ['다목적실', '문화관', '지하 회의실'],
     startDate: '',
     endDate: '',
   });
@@ -311,6 +311,7 @@ export default function MeetingRoomReservation() {
     if (error) { alert('예약 중 오류가 발생했습니다.'); return; }
 
     const newReservation = dbToReservation(data);
+    setReservations(prev => [...prev, newReservation]);
     setLastReservation(newReservation);
     setShowSuccessModal(true);
     setFormData({ name: '', purpose: '' });
