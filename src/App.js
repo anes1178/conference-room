@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import {
   X, Calendar, MapPin, List, CheckCircle, Clock, Users,
   TrendingUp, LayoutDashboard, ChevronLeft, ChevronRight,
-  Search, Filter, Monitor, Tv, Mic, Video,
+  Search, Filter, Monitor, Tv, Mic, Video, Shield, KeyRound,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -43,6 +43,8 @@ const ROOM_DETAILS = [
 const ROOM_MAP = Object.fromEntries(ROOM_DETAILS.map(r => [r.name, r]));
 const ROOM_COLORS = { 다목적실: 'indigo', 문화관: 'violet', '지하 회의실': 'sky' };
 const ROOM_BTN_ACTIVE = { 다목적실: 'bg-indigo-600 text-white', 문화관: 'bg-violet-600 text-white', '지하 회의실': 'bg-sky-600 text-white' };
+
+const ADMIN_PIN = '1234'; // 변경하려면 이 값을 수정하세요
 
 // ─────────────────────────────────────────────
 // 유틸리티 함수
@@ -102,6 +104,7 @@ const dbToReservation = (row) => ({
   purpose: row.purpose,
   attendeeCount: row.attendee_count,
   createdAt: row.created_at,
+  status: row.status ?? 'approved',
 });
 
 // ─────────────────────────────────────────────
@@ -194,6 +197,11 @@ export default function MeetingRoomReservation() {
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [selectedRoomDetail, setSelectedRoomDetail] = useState(null);
 
+  // ── 관리자 ──
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminPinInput, setAdminPinInput] = useState('');
+
   // ── 예약 목록 필터 ──
   const [filterParams, setFilterParams] = useState({
     searchQuery: '',
@@ -230,13 +238,13 @@ export default function MeetingRoomReservation() {
 
   const isTimeRangeAvailable = (room, date, start, end) =>
     !reservations.some(
-      r => r.room === room && r.date === date && !(r.endHour <= start || r.startHour >= end)
+      r => r.room === room && r.date === date && r.status === 'approved' && !(r.endHour <= start || r.startHour >= end)
     );
 
   const canReserve =
     isTimeRangeAvailable(selectedRoom, selectedDate, startHour, endHour) && startHour < endHour;
 
-  const filteredByDate = reservations.filter(r => r.date === selectedDate);
+  const filteredByDate = reservations.filter(r => r.date === selectedDate && r.status === 'approved');
 
   const weekDates = useMemo(() => getWeekDates(weekStartDate), [weekStartDate]);
 
@@ -308,6 +316,7 @@ export default function MeetingRoomReservation() {
       name: formData.name,
       purpose: formData.purpose,
       attendee_count: attendeeCount,
+      status: 'pending',
     }).select().single();
 
     if (error) { alert('예약 중 오류가 발생했습니다.'); return; }
@@ -330,6 +339,16 @@ export default function MeetingRoomReservation() {
     } else {
       setReservations(prev => prev.filter(r => r.id !== id));
     }
+  };
+
+  const handleApprove = async (id) => {
+    const { error } = await supabase.from('reservations').update({ status: 'approved' }).eq('id', id);
+    if (!error) setReservations(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r));
+  };
+
+  const handleReject = async (id) => {
+    const { error } = await supabase.from('reservations').update({ status: 'rejected' }).eq('id', id);
+    if (!error) setReservations(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r));
   };
 
   const handleMouseEnter = (reservation, e) => {
@@ -755,7 +774,7 @@ export default function MeetingRoomReservation() {
   // ─────────────────────────────────────────────
   const renderWeeklyView = () => {
     const weekRes = reservations.filter(
-      r => r.room === activeWeekRoom && weekDates.includes(r.date)
+      r => r.room === activeWeekRoom && weekDates.includes(r.date) && r.status === 'approved'
     );
     const c = ROOM_COLORS[activeWeekRoom];
 
@@ -990,6 +1009,21 @@ export default function MeetingRoomReservation() {
                           {r.attendeeCount}명
                         </span>
                       )}
+                      {r.status === 'pending' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
+                          승인 대기 중
+                        </span>
+                      )}
+                      {r.status === 'approved' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-300">
+                          승인됨
+                        </span>
+                      )}
+                      {r.status === 'rejected' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-300">
+                          거절됨
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
                       <Clock className="w-4 h-4 shrink-0" />
@@ -1082,8 +1116,11 @@ export default function MeetingRoomReservation() {
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
           <div className="flex items-center gap-3 mb-4">
-            <CheckCircle className="w-8 h-8 text-green-500" />
-            <h3 className="text-xl font-bold text-gray-800">예약 완료!</h3>
+            <CheckCircle className="w-8 h-8 text-yellow-500" />
+            <div>
+              <h3 className="text-xl font-bold text-gray-800">신청 완료!</h3>
+              <p className="text-sm text-yellow-600 font-medium">관리자 승인 후 확정됩니다</p>
+            </div>
           </div>
           <div className="space-y-2 text-sm text-gray-600 mb-5">
             <p><span className="font-medium text-gray-700">회의실:</span> {lastReservation.room}</p>
@@ -1110,12 +1147,138 @@ export default function MeetingRoomReservation() {
   };
 
   // ─────────────────────────────────────────────
+  // 렌더: 관리자 패널
+  // ─────────────────────────────────────────────
+  const renderAdmin = () => {
+    const pending = reservations.filter(r => r.status === 'pending')
+      .sort((a, b) => a.date.localeCompare(b.date) || a.startHour - b.startHour);
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-5">
+        <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-indigo-600" />
+          승인 대기 목록
+          <span className="text-sm text-gray-400 font-normal ml-1">({pending.length}건)</span>
+        </h2>
+        <p className="text-xs text-gray-400 mb-5">승인하면 예약 현황에 표시되고, 해당 시간대가 잠깁니다.</p>
+        {pending.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">
+            <CheckCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p>대기 중인 예약이 없습니다.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pending.map(r => {
+              const c = ROOM_COLORS[r.room];
+              return (
+                <div key={r.id} className="border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className={`w-1.5 min-h-12 rounded-full bg-${c}-500 shrink-0 self-stretch`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className={`font-bold text-${c}-700`}>{r.room}</span>
+                        <span className="text-sm text-gray-500">{formatDate(r.date)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
+                        <Clock className="w-4 h-4 shrink-0" />
+                        {r.startHour}:00 ~ {r.endHour}:00
+                        <span className="text-gray-400 ml-1">({r.endHour - r.startHour}시간)</span>
+                      </div>
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">예약자:</span> {r.name}
+                        {r.attendeeCount && <span className="ml-2 text-gray-500">({r.attendeeCount}명)</span>}
+                      </div>
+                      <div className="text-sm text-gray-600 truncate">
+                        <span className="font-medium text-gray-700">목적:</span> {r.purpose}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => handleApprove(r.id)}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                    >
+                      승인
+                    </button>
+                    <button
+                      onClick={() => handleReject(r.id)}
+                      className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium border border-red-100"
+                    >
+                      거절
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <button
+          onClick={() => { setIsAdmin(false); setActiveTab('dashboard'); }}
+          className="mt-6 text-xs text-gray-400 hover:text-gray-600 transition"
+        >
+          관리자 로그아웃
+        </button>
+      </div>
+    );
+  };
+
+  // ─────────────────────────────────────────────
+  // 렌더: 관리자 PIN 모달
+  // ─────────────────────────────────────────────
+  const renderAdminLoginModal = () => {
+    if (!showAdminLogin) return null;
+    const handleSubmit = () => {
+      if (adminPinInput === ADMIN_PIN) {
+        setIsAdmin(true);
+        setActiveTab('admin');
+        setShowAdminLogin(false);
+      } else {
+        alert('PIN이 올바르지 않습니다.');
+        setAdminPinInput('');
+      }
+    };
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+          <div className="flex items-center gap-3 mb-5">
+            <Shield className="w-7 h-7 text-indigo-600" />
+            <h3 className="text-xl font-bold text-gray-800">관리자 로그인</h3>
+          </div>
+          <input
+            type="password"
+            placeholder="PIN 입력"
+            value={adminPinInput}
+            onChange={(e) => setAdminPinInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-center text-2xl tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleSubmit}
+              className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-medium hover:bg-indigo-700 transition"
+            >
+              확인
+            </button>
+            <button
+              onClick={() => setShowAdminLogin(false)}
+              className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-xl font-medium hover:bg-gray-200 transition"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ─────────────────────────────────────────────
   // 메인 렌더
   // ─────────────────────────────────────────────
   const TAB_META = [
     { id: 'dashboard', label: '대시보드', Icon: LayoutDashboard },
     { id: 'calendar', label: '예약 현황', Icon: Calendar },
     { id: 'list', label: '예약 목록', Icon: List },
+    { id: 'admin', label: '관리자', Icon: Shield },
   ];
 
   return (
@@ -1135,7 +1298,14 @@ export default function MeetingRoomReservation() {
           {TAB_META.map(({ id, label, Icon }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => {
+                if (id === 'admin' && !isAdmin) {
+                  setAdminPinInput('');
+                  setShowAdminLogin(true);
+                } else {
+                  setActiveTab(id);
+                }
+              }}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition border-b-2 -mb-px ${
                 activeTab === id
                   ? 'text-indigo-600 border-indigo-600'
@@ -1144,6 +1314,7 @@ export default function MeetingRoomReservation() {
             >
               <Icon className="w-4 h-4" />
               {label}
+              {id === 'admin' && !isAdmin && <KeyRound className="w-3 h-3 ml-0.5 text-gray-400" />}
             </button>
           ))}
         </div>
@@ -1231,11 +1402,15 @@ export default function MeetingRoomReservation() {
 
         {/* 예약 목록 */}
         {activeTab === 'list' && renderList()}
+
+        {/* 관리자 패널 */}
+        {activeTab === 'admin' && renderAdmin()}
       </div>
 
       {/* 모달들 */}
       {renderRoomModal()}
       {renderSuccessModal()}
+      {renderAdminLoginModal()}
     </div>
   );
 }
