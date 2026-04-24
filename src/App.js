@@ -440,7 +440,7 @@ export default function MeetingRoomReservation() {
           value={selectedDate}
           min={today()}
           onChange={(e) => setSelectedDate(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm box-border"
         />
         <p className="text-xs text-gray-500 mt-1">{formatDate(selectedDate)}</p>
       </div>
