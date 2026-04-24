@@ -41,7 +41,8 @@ const ROOM_DETAILS = [
 
 // 회의실 이름 → 상세정보 빠른 조회
 const ROOM_MAP = Object.fromEntries(ROOM_DETAILS.map(r => [r.name, r]));
-const ROOM_COLORS = { 다목적실: 'indigo', 문화관: 'violet', 지하회의실: 'sky' };
+const ROOM_COLORS = { 다목적실: 'indigo', 문화관: 'violet', '지하 회의실': 'sky' };
+const ROOM_BTN_ACTIVE = { 다목적실: 'bg-indigo-600 text-white', 문화관: 'bg-violet-600 text-white', '지하 회의실': 'bg-sky-600 text-white' };
 
 // ─────────────────────────────────────────────
 // 유틸리티 함수
@@ -716,7 +717,23 @@ export default function MeetingRoomReservation() {
                   {room}
                 </button>
               </div>
-              <div className="relative flex-1 bg-gray-100 rounded-lg h-12 border border-gray-200">
+              <div
+                className="relative flex-1 bg-gray-100 rounded-lg h-12 border border-gray-200 cursor-pointer"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  const totalHours = HOURS[HOURS.length - 1] - HOURS[0];
+                  const hour = HOURS[0] + Math.floor((x / rect.width) * totalHours);
+                  const clampedHour = Math.max(HOURS[0], Math.min(HOURS[HOURS.length - 2], hour));
+                  if (isTimeRangeAvailable(room, selectedDate, clampedHour, clampedHour + 1)) {
+                    setSelectedRoom(room);
+                    setStartHour(clampedHour);
+                    setEndHour(clampedHour + 1);
+                    setShowForm(true);
+                    setShowFormMobile(true);
+                  }
+                }}
+              >
                 {/* 시간 눈금 */}
                 <div className="absolute inset-0 flex">
                   {HOURS.map(h => (
@@ -750,7 +767,6 @@ export default function MeetingRoomReservation() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
           <div className="flex gap-1">
             {rooms.map(room => {
-              const rc = ROOM_COLORS[room];
               const isActive = room === activeWeekRoom;
               return (
                 <button
@@ -758,8 +774,8 @@ export default function MeetingRoomReservation() {
                   onClick={() => setActiveWeekRoom(room)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                     isActive
-                      ? `bg-${rc}-600 text-white`
-                      : `bg-gray-100 text-gray-600 hover:bg-gray-200`
+                      ? ROOM_BTN_ACTIVE[room]
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
                   {room}
