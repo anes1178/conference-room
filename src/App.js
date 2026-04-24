@@ -291,7 +291,7 @@ export default function MeetingRoomReservation() {
 
     // 다음 예정 예약 (오늘 이후, 최대 5건)
     const upcoming = [...reservations]
-      .filter(r => r.date > todayStr || (r.date === todayStr && r.startHour > new Date().getHours()))
+      .filter(r => r.status === 'approved' && (r.date > todayStr || (r.date === todayStr && r.startHour > new Date().getHours())))
       .sort((a, b) => a.date.localeCompare(b.date) || a.startHour - b.startHour)
       .slice(0, 5);
 
