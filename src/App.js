@@ -253,9 +253,11 @@ export default function MeetingRoomReservation() {
     return [...reservations]
       .filter(r => {
         if (r.status === 'rejected') return false;
-        const matchName = filterParams.searchQuery
-          ? r.name.includes(filterParams.searchQuery)
-          : true;
+        if (r.status === 'pending') {
+          // pending은 이름 검색 시 본인 것만 표시
+          return !!filterParams.searchQuery && r.name.includes(filterParams.searchQuery);
+        }
+        const matchName = filterParams.searchQuery ? r.name.includes(filterParams.searchQuery) : true;
         const matchRoom = filterParams.rooms.includes(r.room);
         const matchStart = filterParams.startDate ? r.date >= filterParams.startDate : true;
         const matchEnd = filterParams.endDate ? r.date <= filterParams.endDate : true;
@@ -929,7 +931,7 @@ export default function MeetingRoomReservation() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="예약자명으로 검색"
+            placeholder="내 이름 검색 시 승인 대기 중인 신청도 표시됩니다"
             value={filterParams.searchQuery}
             onChange={(e) => setFilterParams(prev => ({ ...prev, searchQuery: e.target.value }))}
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -1126,12 +1128,24 @@ export default function MeetingRoomReservation() {
             )}
             <p><span className="font-medium text-gray-700">사용목적:</span> {lastReservation.purpose}</p>
           </div>
-          <button
-            onClick={() => setShowSuccessModal(false)}
-            className="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-medium hover:bg-indigo-700 transition"
-          >
-            확인
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+                setFilterParams(prev => ({ ...prev, searchQuery: lastReservation.name }));
+                setActiveTab('list');
+              }}
+              className="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-medium hover:bg-indigo-700 transition"
+            >
+              내 예약 확인하기
+            </button>
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full bg-gray-100 text-gray-600 py-2.5 rounded-xl font-medium hover:bg-gray-200 transition text-sm"
+            >
+              닫기
+            </button>
+          </div>
         </div>
       </div>
     );
