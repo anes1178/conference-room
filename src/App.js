@@ -345,10 +345,8 @@ export default function MeetingRoomReservation() {
     setStartHour(hour);
     setEndHour(Math.min(hour + 1, 22));
     setSelectedRoom(activeWeekRoom);
-    // 예약 현황 탭으로 이동하고 일별 뷰 + 폼 표시
-    setViewMode('daily');
-    setActiveTab('calendar');
     setShowForm(true);
+    setShowFormMobile(true);
   };
 
   const prevWeek = () => {
