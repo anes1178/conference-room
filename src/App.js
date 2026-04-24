@@ -9,7 +9,7 @@ import {
 // ─────────────────────────────────────────────
 // 상수 / 초기 데이터
 // ─────────────────────────────────────────────
-const HOURS = Array.from({ length: 9 }, (_, i) => 9 + i); // 9 ~ 17
+const HOURS = Array.from({ length: 14 }, (_, i) => 9 + i); // 9 ~ 22
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
 
 const ROOM_DETAILS = [
@@ -273,7 +273,7 @@ export default function MeetingRoomReservation() {
       );
       const usedHours = weekRes.reduce((s, r) => s + (r.endHour - r.startHour), 0);
       // 주 5일 × 9시간 기준
-      const maxHours = 5 * 9;
+      const maxHours = 5 * 13;
       return { name: rd.name, usedHours, pct: Math.round((usedHours / maxHours) * 100) };
     });
 
@@ -342,7 +342,7 @@ export default function MeetingRoomReservation() {
   const handleWeekCellClick = (date, hour) => {
     setSelectedDate(date);
     setStartHour(hour);
-    setEndHour(Math.min(hour + 1, 17));
+    setEndHour(Math.min(hour + 1, 22));
     setSelectedRoom(activeWeekRoom);
     // 예약 현황 탭으로 이동하고 일별 뷰 + 폼 표시
     setViewMode('daily');
@@ -385,8 +385,8 @@ export default function MeetingRoomReservation() {
   // 렌더 헬퍼: 타임라인 블록 공통
   // ─────────────────────────────────────────────
   const renderTimelineBlock = (reservation, showTooltip = true) => {
-    const startPct = ((reservation.startHour - 9) / 9) * 100;
-    const widthPct = ((reservation.endHour - reservation.startHour) / 9) * 100;
+    const startPct = ((reservation.startHour - 9) / 13) * 100;
+    const widthPct = ((reservation.endHour - reservation.startHour) / 13) * 100;
     const c = ROOM_COLORS[reservation.room];
 
     return (
